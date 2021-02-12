@@ -1,0 +1,8 @@
+apiVersion: {{ .Values.apiVersion.backendConfig }}
+kind: BackendConfig
+metadata:
+  name: {{ .Values.appFullName }}-backendconfig
+  namespace: {{ .Values.namespace }}
+spec:
+  securityPolicy:
+    name: "webpulse-broadcom-internal"

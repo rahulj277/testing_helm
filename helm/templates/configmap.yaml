@@ -1,0 +1,11 @@
+{{- $filebeatConfigLocation := printf "env_files/filebeat-config.yaml" }}
+apiVersion: {{ .Values.apiVersion.configMap }}
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: {{ .Values.configmap }}
+  namespace: {{ .Values.namespace }}
+data:
+  filebeat.yml: |
+    {{ (tpl (.Files.Get $filebeatConfigLocation) .)| nindent 4 | trim }}

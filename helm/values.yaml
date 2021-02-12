@@ -1,0 +1,176 @@
+# Default values for accountprovisioner.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+
+appName: accountprovisioner-dev
+
+namespace: sedwebpulse-dev
+minReplicas: 1
+appFullName: accountprovisioner-dev
+
+secret_name: accountprovisioner-dev-gcp
+encryption_key: ""
+splunk_pwd: ""
+
+deployment:
+  annotations:
+    ca.broadcom.com/autoattach.enabled : "true"
+    ca.broadcom.com/autoattach.java.agent.overrides : "agentManager.url.1=wss://apmgw.dxi-na1.saas.broadcom.com:443,agentManager.credential=eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJhZ2VudCI6dHJ1ZSwiZXhwIjo5MjIzMzcyMDM2ODU0Nzc1LCJ0aWQiOjEzNDksImp0aSI6ImQ4MDVkODVmLWY3OGEtNDc4ZC04ZGNlLWUyNDMwZmZlZWFiZCJ9.IGBIXpXDHyU8r9W7HZYLPd2_SzFyAYraxrT8ZtvPMqatAqQGYjl68WA5EjI4UlX7Q4MfC4Jso2s5jaQZDl_5Lw"
+
+application_container:  
+  image:
+    repository: gcr.io/sdwplus-saas-gke1/sdwplussaasgke1/sedwebpulse-dev/accountprovisioner
+    tag: 1.0.0
+    pullPolicy: Always
+  readinessProbe:
+    httpGet:
+      path: /health/check
+      port: 8080
+  livenessProbe:
+    httpGet:
+      path: /health/check
+      port: 8080
+  logMountPath: /usr/local/apache-tomcat/logs
+  labels:
+    cm-service: WebPulse
+    cm-geo: NorthAM
+    cm-region: us-east4
+    cm-pop: Primary
+    cm-cluster: Primary
+    cm-service-unit: accountprovisioner
+    cm-instance: accountprovisioner
+    accesibility: internal
+    application: accountprovisioner
+    environment: gke
+    intelligence_type: license
+    maintainer: david_call
+    role: webapp
+    service: accountprovisioner
+    sub_team: eng
+    team: webpulse
+    usage: customer      
+  envParams:
+    - name: WPPROPERTIES_ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: accountprovisioner-dev-gcp
+          key:  encryption_key
+    - name: WPPROPERTIES_ENCRYPTION_ALGORITHM
+      value: PBEWithHmacSHA256AndAES_128
+    - name: GIN_NAMESPACE
+      value: accountprovisioner-gcp-dev-gke-guse4a
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "1000m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+
+configmap: webpulse-accountprovisioner-configmap
+
+service:
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"80":"accountprovisioner-dev-backendconfig"}}'
+    cloud.google.com/neg: '{"ingress": true}'
+  type: NodePort
+  http:
+   name: http
+   port: 80
+   targetPort: 8080
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70 
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.allow-http: "false"
+  tls:
+    secretName: accountprovisioner-dev-tls-secret
+    cert: "-----BEGIN CERTIFICATE-----\n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\n44jCznsv6e/308tk\n-----END CERTIFICATE-----"
+    key: ""
+  host:
+    paths: 
+      - path: /*
+        serviceName: accountprovisioner-dev
+        servicePort: 80
+
+# apiVersion for Kubernetes Objects
+apiVersion:
+  deployment: apps/v1
+  service: v1
+  configMap: v1
+  secret: v1
+  ingress: networking.k8s.io/v1beta1
+  backendConfig: cloud.google.com/v1
+   
+securityContext:
+  runAsUser: 1010
+  runAsGroup: 1010
+  fsGroup: 1010
+
+filebeat:
+  image:
+    repository: gcr.io/sdwplus-saas-gke1/sdwplussaasgke1/sedwebpulse-dev/filebeat-7-5-1-oss
+    tag: "2.7.8.2"
+    pullPolicy: Always
+  logsPath: "/home/default/filebeat_logs"
+  filebeatConfigPath: "/filebeat_config"
+  configsPath: "/filebeat_config/conf"
+  envParams:
+    - name: TENANT_ID
+      value: D21FF73C-5473-4CAA-9974-E98ABF8BC828
+    - name: LOGSTASH_HOST_NAME
+      value: wp-logcollector.sedwebpulse-dev.svc.cluster.local 
+    - name: LOGSTASH_BEATS_PORT
+      value: "5044"
+  resources:
+    requests:
+      memory: "100Mi"
+      cpu: "0.5m"
+    limits:
+      memory: "200Mi"
+      cpu: "1m"
+
+splunkUF:
+  enabled: true
+  name: splunk-uf
+  logsPath: /var/log
+  secretName: accountprovisioner-dev-splunk
+  port:
+    name: management
+    containerPort: 80   
+  securityContext:
+    runAsUser: 41812
+    runAsGroup: 41812
+  image:
+    repository: gcr.io/sdwplus-saas-gke1/sdwplussaasgke1/sedwebpulse-dev/splunk-universal-forwarder
+    tag: "3.1.0"
+    pullPolicy: Always
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "1"
+    limits:
+      memory: "1024Mi"
+      cpu: "1.5"
+  envParams:
+    - name: SPLUNK_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: accountprovisioner-dev-splunk
+          key: password
+    - name: SPLUNK_START_ARGS
+      value: --accept-license
+    - name: SPLUNK_STANDALONE_URL
+      value: splunk-eng.wp.bluecoat.com:9997    
+    - name: SPLUNK_CMD
+      value: add monitor /var/log/(accountprovisioner|catalina*).log -sourcetype accountprovisioner_dev
+    - name: SPLUNK_HOME_OWNERSHIP_ENFORCEMENT
+      value: "false"
+

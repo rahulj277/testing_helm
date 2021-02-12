@@ -1,0 +1,100 @@
+apiVersion: {{ .Values.apiVersion.deployment }}
+kind: Deployment
+metadata:
+  name: {{ .Values.appFullName }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    {{- toYaml .Values.deployment.annotations | nindent 4 }}
+spec:
+  replicas: {{ .Values.minReplicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+  template:
+    metadata:
+      labels:
+        {{- with .Values.application_container.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        app: {{ .Values.appName }}
+    spec:
+      securityContext:
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsUser }}
+        fsGroup: {{ .Values.securityContext.runAsUser }}  
+      containers:
+      - name: {{ .Values.appName }}
+        image: "{{ .Values.application_container.image.repository }}:{{ .Values.application_container.image.tag }}"
+        imagePullPolicy: {{ .Values.application_container.image.pullPolicy }}
+        ports:
+         - name: {{ .Values.service.http.name }}
+           containerPort: {{ .Values.service.http.targetPort }}
+        resources:
+          requests:
+            memory: {{ .Values.application_container.resources.requests.memory }}
+            cpu: {{ .Values.application_container.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.application_container.resources.limits.memory }}
+            cpu: {{ .Values.application_container.resources.limits.cpu }}   
+        env:
+          {{- toYaml .Values.application_container.envParams | nindent 12 }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.application_container.readinessProbe.httpGet.path }}
+            port: {{ .Values.application_container.readinessProbe.httpGet.port }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.application_container.livenessProbe.httpGet.path }}
+            port: {{ .Values.application_container.livenessProbe.httpGet.port }}
+        volumeMounts:
+         - mountPath: {{.Values.application_container.logMountPath}}
+           name: logs    
+      - name:  filebeat
+        image: "{{ .Values.filebeat.image.repository }}:{{ .Values.filebeat.image.tag }}"
+        imagePullPolicy: {{ .Values.filebeat.image.pullPolicy }}
+        resources:
+          requests:
+            memory: {{ .Values.filebeat.resources.requests.memory }}
+            cpu: {{ .Values.filebeat.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.filebeat.resources.limits.memory }}
+            cpu: {{ .Values.filebeat.resources.limits.cpu }}
+        env:
+         {{- toYaml .Values.filebeat.envParams | nindent 12 }}
+        volumeMounts:
+         - mountPath: {{ .Values.filebeat.logsPath }}/log4j
+           name: logs
+         - mountPath: {{ .Values.filebeat.logsPath }}/tomcat
+           name: logs
+         - mountPath:  {{ .Values.filebeat.configsPath }}/filebeat.yml
+           name: configs
+           subPath: filebeat.yml
+      {{- if .Values.splunkUF.enabled }}
+      - name:  {{ .Values.splunkUF.name }}
+        image: "{{ .Values.splunkUF.image.repository }}:{{ .Values.splunkUF.image.tag }}"
+        imagePullPolicy: {{ .Values.splunkUF.image.pullPolicy }}
+        securityContext:
+          runAsUser: {{ .Values.splunkUF.securityContext.runAsUser }}
+          runAsGroup: {{ .Values.splunkUF.securityContext.runAsGroup }}
+        ports:
+          - name: {{ .Values.splunkUF.port.name }}
+            containerPort: {{ .Values.splunkUF.port.containerPort }}
+        env:
+          {{ toYaml .Values.splunkUF.envParams | nindent 10 }}
+        resources:
+          requests:
+            memory: {{ .Values.splunkUF.resources.requests.memory }}
+            cpu: {{ .Values.splunkUF.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.splunkUF.resources.limits.memory }}
+            cpu: {{ .Values.splunkUF.resources.limits.cpu }} 
+        volumeMounts:
+         - mountPath: {{ .Values.splunkUF.logsPath }}
+           name: logs
+      {{- end }}     
+      volumes: 
+       - emptyDir: {}
+         name: logs
+       - configMap:
+           name: {{ .Values.configmap }}
+         name: configs

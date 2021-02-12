@@ -1,0 +1,25 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: {{ .Values.apiVersion.ingress }}
+kind: Ingress
+metadata:
+  name: {{ .Values.appFullName }}-ingress
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  tls:
+    - secretName: {{ .Values.ingress.tls.secretName }}
+  rules:
+    - http:
+        paths:
+          {{- range .Values.ingress.host.paths }}
+          - path: {{ .path }}
+            backend:
+              serviceName: {{ .serviceName }}
+              servicePort: {{ .servicePort }}
+          {{- end }}
+{{- end }}
